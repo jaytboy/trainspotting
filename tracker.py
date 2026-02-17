@@ -1,4 +1,3 @@
-# tracker.py
 import asyncio, time, cv2, numpy as np
 from collections import defaultdict, deque
 from ultralytics import YOLO
@@ -19,6 +18,7 @@ IMG_SIZE = 640
 START_FRAMES = 6               # frames with detections to call "train started"
 END_TIMEOUT_S = 8.0
 MIN_TRACK_FRAMES = 2           # require ≥2 frames before counting a track
+PIXELS_PER_FOOT = 12.0
 
 # EB/WB mapping for a vertical count line at x = LINE_X
 # dx = cx - prev_cx : positive means left->right
@@ -36,6 +36,8 @@ class TrainSession:
         self.last_detection_time = 0.0
         self.start_buffer = deque(maxlen=START_FRAMES)
         self.dx_buffer = deque(maxlen=30)   # collect dx for direction estimate
+        self.speeds = [] # list of calculated speeds (mph)
+        self.last_ts = {} # track_id -> last timestamp
 
     def start(self):
         self.active = True
@@ -46,6 +48,8 @@ class TrainSession:
         self.track_age.clear()
         self.start_buffer.clear()
         self.dx_buffer.clear()
+        self.speeds.clear()
+        self.last_ts.clear()
         self.last_detection_time = time.time()
 
     def maybe_end(self):
@@ -141,6 +145,21 @@ async def tracker_loop():
                                         klass=label, direction=direction_compass)
                             db.add(ev); db.commit()
 
+                            # Calculate speed
+                            speed_mph = 0.0
+                            if tid in train.last_ts:
+                                dt = now - train.last_ts[tid]
+                                if dt > 0:
+                                    # distance in feet = dx (pixels) / PIXELS_PER_FOOT
+                                    # speed in fps = (dx / PIXELS_PER_FOOT) / dt
+                                    # speed in mph = fps * 0.681818
+                                    # Use absolute dx for speed magnitude
+                                    dist_ft = abs(dx) / PIXELS_PER_FOOT
+                                    fps = dist_ft / dt
+                                    speed_mph = fps * 0.681818
+                                    if speed_mph > 0.1 and speed_mph < 150: # valid range filter
+                                        train.speeds.append(speed_mph)
+
                             # Queue loco crop for OCR
                             if label == "locomotive":
                                 x1i, y1i, x2i, y2i = map(int, [x1, y1, x2, y2])
@@ -153,6 +172,11 @@ async def tracker_loop():
                                     "image": crop
                                 })
 
+                            # Calculate current average speed for display
+                            avg_speed = 0.0
+                            if train.speeds:
+                                avg_speed = sum(train.speeds) / len(train.speeds)
+
                             # Live update event (now includes EB/WB)
                             await event_queue.put({
                                 "event": "count",
@@ -160,11 +184,14 @@ async def tracker_loop():
                                 "track_id": int(tid),
                                 "class": label,
                                 "direction": direction_compass,     # EB / WB
+                                "speed_mph": round(speed_mph, 1),
+                                "avg_speed_mph": round(avg_speed, 1),
                                 "totals": dict(train.counts),
                                 "ts": time.time()
                             })
 
                     train.last_center_x[tid] = cx
+                    train.last_ts[tid] = now
 
             # Train end?
             if train.maybe_end():
@@ -173,6 +200,8 @@ async def tracker_loop():
                 tp.direction = train.direction()
                 tp.total_locomotives = train.counts.get("locomotive", 0)
                 tp.total_railcars = train.counts.get("railcar", 0)
+                if train.speeds:
+                     tp.avg_speed_mph = sum(train.speeds) / len(train.speeds)
                 db.add(tp); db.commit()
 
                 await event_queue.put({
