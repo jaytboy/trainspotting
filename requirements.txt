@@ -1,7 +1,7 @@
 ultralytics>=8.0.20
 lapx>=0.9.4
 fastapi>=0.68.2
-uvicorn>=0.15.0
+unicorn[standard]>=0.41.0
 python-multipart>=0.0.5
 sqlalchemy>=1.4.27
 psycopg2-binary>=2.9.3
@@ -10,3 +10,4 @@ pillow>=9.0.1
 pytesseract>=0.3.8
 opencv-python>=4.5.5.64
 jinja2>=3.0.3
+
