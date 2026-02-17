@@ -154,7 +154,12 @@ async def tracker_loop():
 
                             # Calculate speed
                             speed_mph = 0.0
-                            if tid in train.last_ts:
+                            
+                            # Only calculate speed if object is fully inside the frame
+                            frame_h, frame_w = raw.shape[:2]
+                            is_fully_inside = (x1 > 1) and (x2 < frame_w - 1)
+
+                            if tid in train.last_ts and is_fully_inside:
                                 dt = now - train.last_ts[tid]
                                 if dt > 0:
                                     # distance in feet = dx (pixels) / PIXELS_PER_FOOT
