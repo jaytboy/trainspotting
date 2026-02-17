@@ -1,4 +1,3 @@
-# app.py
 import asyncio
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import HTMLResponse
@@ -92,6 +91,7 @@ def trains_recent():
                 "direction": tp.direction,
                 "locomotives": tp.total_locomotives,
                 "railcars": tp.total_railcars,
+                "avg_speed_mph": tp.avg_speed_mph,
                 "engine_numbers": engines
             })
         return {"data": out}
