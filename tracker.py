@@ -64,6 +64,7 @@ class TrainSession:
 train = TrainSession()
 
 async def tracker_loop():
+    global train
     model = YOLO(MODEL_PATH)
     cap = 0  # USB camera index
     last_frame = None
@@ -231,3 +232,4 @@ async def tracker_loop():
     finally:
         db.close()
         cam.release()
+
