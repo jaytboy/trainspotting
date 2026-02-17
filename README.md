@@ -20,6 +20,11 @@ A real-time train detection and counting application using computer vision and O
 ## Setup
 
 ### 1. Clone or Download Project
+Clone:
+```bash
+git clone https://github.com/jaytboy/trainspotting
+```
+or download then enter project folder.
 ```bash
 cd trainspotter
 ```
@@ -28,7 +33,7 @@ cd trainspotter
 ```bash
 python -m venv venv
 # On Windows:
-venv\Scripts\activate
+venv\Scripts\Activate.ps1
 # On macOS/Linux:
 source venv/bin/activate
 ```
