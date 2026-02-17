@@ -81,18 +81,25 @@ async def tracker_loop():
     h0, w0 = frame.shape[:2]
 
     # Kick off model tracking generator (uses its own capture on source=0)
-    gen = model.track(source=cap, tracker="bytetrack.yaml",
-                      conf=CONF, imgsz=IMG_SIZE, persist=True, stream=True)
+    # gen = model.track(source=cap, tracker="bytetrack.yaml",
+    #                   conf=CONF, imgsz=IMG_SIZE, persist=True, stream=True)
 
     db = SessionLocal()
 
     try:
-        for r in gen:
-            now = time.time()
-            # Read a parallel frame for crops
+        while True:
+            # Read frame explicitly
             ret, raw = cam.read()
             if not ret:
+                # If camera fails, wait a bit and try again or break
+                await asyncio.sleep(0.1)
                 continue
+
+            results = model.track(raw, tracker="bytetrack.yaml",
+                                conf=CONF, imgsz=IMG_SIZE, persist=True, verbose=False)
+
+            for r in results:
+                now = time.time()
 
             has_boxes = r.boxes is not None and len(r.boxes) > 0
 
