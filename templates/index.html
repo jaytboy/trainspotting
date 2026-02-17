@@ -1,17 +1,47 @@
 <!doctype html>
 <html>
+
 <head>
-  <meta charset="utf-8"/>
+  <meta charset="utf-8" />
   <title>Train Counter Dashboard</title>
-  https://cdn.jsdelivr.net/npm/chart.js</script>
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:20px}
-    .row{display:flex;gap:24px;flex-wrap:wrap}
-    .card{border:1px solid #ddd;border-radius:8px;padding:16px;flex:1;min-width:280px}
-    .big{font-size:32px;font-weight:600}
-    #log{max-height:240px;overflow:auto;font-family:ui-monospace;background:#fafafa;padding:8px;border:1px solid #eee}
+    body {
+      font-family: system-ui, Segoe UI, Roboto, Arial;
+      margin: 20px
+    }
+
+    .row {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap
+    }
+
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 16px;
+      flex: 1;
+      min-width: 280px
+    }
+
+    .big {
+      font-size: 32px;
+      font-weight: 600
+    }
+
+    #log {
+      max-height: 240px;
+      overflow: auto;
+      font-family: ui-monospace;
+      background: #fafafa;
+      padding: 8px;
+      border: 1px solid #eee
+    }
   </style>
 </head>
+
 <body>
   <h1>Train Counter</h1>
 
@@ -51,6 +81,7 @@
     <pre id="log"></pre>
   </div>
 
-  /static/dashboard.js</script>
+  <script src="/static/dashboard.js"></script>
 </body>
+
 </html>
