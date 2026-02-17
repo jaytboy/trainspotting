@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Train Counter Dashboard</title>
+  https://cdn.jsdelivr.net/npm/chart.js</script>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:20px}
+    .row{display:flex;gap:24px;flex-wrap:wrap}
+    .card{border:1px solid #ddd;border-radius:8px;padding:16px;flex:1;min-width:280px}
+    .big{font-size:32px;font-weight:600}
+    #log{max-height:240px;overflow:auto;font-family:ui-monospace;background:#fafafa;padding:8px;border:1px solid #eee}
+  </style>
+</head>
+<body>
+  <h1>Train Counter</h1>
+
+  <div class="row">
+    <div class="card">
+      <div>Active Train:</div>
+      <div id="activeTrain" class="big">None</div>
+      <div>Direction: <span id="direction">—</span></div>
+    </div>
+    <div class="card">
+      <div>Locomotives</div>
+      <div id="loc" class="big">0</div>
+    </div>
+    <div class="card">
+      <div>Railcars</div>
+      <div id="cars" class="big">0</div>
+    </div>
+    <div class="card">
+      <div>Engine Numbers (current train)</div>
+      <div id="engines" style="font-size:20px"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h3>Daily Summary (last 14 days)</h3>
+      <canvas id="dailyChart" height="120"></canvas>
+    </div>
+    <div class="card">
+      <h3>Cars per Train (recent)</h3>
+      <canvas id="cptChart" height="120"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Event Log</h3>
+    <pre id="log"></pre>
+  </div>
+
+  /static/dashboard.js</script>
+</body>
+</html>
