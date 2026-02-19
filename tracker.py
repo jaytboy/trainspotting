@@ -1,7 +1,6 @@
-import asyncio, time, cv2, numpy as np
+import asyncio, time
 from collections import defaultdict, deque
-from ultralytics import YOLO
-from datetime import datetime
+from datetime import datetime, timezone
 from db import SessionLocal, TrainPass, CarEvent
 from typing import Optional
 
@@ -58,25 +57,50 @@ class TrainSession:
     def direction(self) -> Optional[str]:
         if len(self.dx_buffer) < 5:
             return None
+        import numpy as np
         avg = float(np.mean(self.dx_buffer))
         return lr_to_compass(avg)
 
 train = TrainSession()
 
 async def tracker_loop():
+    # Give the server a moment to start up before we block the loop with heavy imports/init
+    await asyncio.sleep(1.0)
+    
+    # Offload heavy imports to thread to avoid blocking loop just in case
+    def load_heavy_imports():
+        import cv2
+        from ultralytics import YOLO
+        from ultralytics.utils.torch_utils import select_device
+        return cv2, YOLO, select_device
+
+    cv2, YOLO, select_device = await asyncio.to_thread(load_heavy_imports)
+    print("OpenCV loaded and ready to capture video") # User requested this specific message for OpenCV load/ready
+
     global train
-    model = YOLO(MODEL_PATH)
+    # Select device (GPU/NPU/CPU)
+    device = select_device('')
+    print(f"Using device: {device}")
+
+    # Load model in thread with device
+    model = await asyncio.to_thread(YOLO, MODEL_PATH)
+    model.to(device)
+    
     cap = 0  # USB camera index
     last_frame = None
 
     # Use stream=True for generator; but we also need the raw frame for OCR crops.
     # We'll open a parallel OpenCV capture for frames.
-    cam = cv2.VideoCapture(cap)
+    # Open camera in thread
+    cam = await asyncio.to_thread(cv2.VideoCapture, cap)
+    
     if not cam.isOpened():
         raise RuntimeError("USB camera not found.")
+    
+    print("Camera loaded") # User requested this output
 
     # Warm-up read to know resolution; we’ll resize to IMG_SIZE width downstream if needed.
-    ret, frame = cam.read()
+    ret, frame = await asyncio.to_thread(cam.read)
     if not ret:
         raise RuntimeError("Failed to grab frame from camera.")
     h0, w0 = frame.shape[:2]
@@ -89,15 +113,17 @@ async def tracker_loop():
 
     try:
         while True:
-            # Read frame explicitly
-            ret, raw = cam.read()
+            # Read frame explicitly in thread
+            ret, raw = await asyncio.to_thread(cam.read)
             if not ret:
                 # If camera fails, wait a bit and try again or break
                 await asyncio.sleep(0.1)
                 continue
 
-            results = model.track(raw, tracker="bytetrack.yaml",
-                                conf=CONF, imgsz=IMG_SIZE, persist=True, verbose=False)
+            # Run inference in thread
+            results = await asyncio.to_thread(model.track, raw, tracker="bytetrack.yaml",
+                                conf=CONF, imgsz=IMG_SIZE, persist=True, verbose=False,
+                                device=model.device)
 
             for r in results:
                 now = time.time()
@@ -109,7 +135,7 @@ async def tracker_loop():
             if not train.active and sum(train.start_buffer) >= START_FRAMES:
                 train.start()
                 # DB row
-                tp = TrainPass(train_id=train.train_id, start_ts=datetime.utcnow())
+                tp = TrainPass(train_id=train.train_id, start_ts=datetime.now(timezone.utc))
                 db.add(tp); db.commit()
                 await event_queue.put({"event": "train_start", "train_id": train.train_id, "ts": now})
 
@@ -146,6 +172,14 @@ async def tracker_loop():
                             # Per-object direction (EB/WB)
                             dx = cx - prev_cx
                             direction_compass = lr_to_compass(dx)
+
+                            # Ensure train is active before logging event
+                            if not train.active:
+                                # Logic duplicated from START_FRAMES check, but inline here to save the event
+                                train.start()
+                                tp = TrainPass(train_id=train.train_id, start_ts=datetime.now(timezone.utc))
+                                db.add(tp); db.commit()
+                                await event_queue.put({"event": "train_start", "train_id": train.train_id, "ts": now})
 
                             # Persist CarEvent with EB/WB
                             tp = db.query(TrainPass).filter_by(train_id=train.train_id).one()
@@ -209,7 +243,7 @@ async def tracker_loop():
             # Train end?
             if train.maybe_end():
                 tp = db.query(TrainPass).filter_by(train_id=train.train_id).one()
-                tp.end_ts = datetime.utcnow()
+                tp.end_ts = datetime.now(timezone.utc)
                 tp.direction = train.direction()
                 tp.total_locomotives = train.counts.get("locomotive", 0)
                 tp.total_railcars = train.counts.get("railcar", 0)
@@ -232,4 +266,3 @@ async def tracker_loop():
     finally:
         db.close()
         cam.release()
-
