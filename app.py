@@ -5,22 +5,25 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
 import uvicorn
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import func
 from db import init_db, SessionLocal, TrainPass, CarEvent, EngineSighting
 from tracker import event_queue, ocr_queue, tracker_loop
 from ocr_worker import ocr_loop
 
-app = FastAPI()
-templates = Jinja2Templates(directory="templates")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+from contextlib import asynccontextmanager
 
-@app.on_event("startup")
-async def startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     init_db()
     # Kick off background loops
     asyncio.create_task(tracker_loop())
     asyncio.create_task(ocr_loop(ocr_queue, event_queue))
+    yield
+
+app = FastAPI(lifespan=lifespan)
+templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 async def index(request: Request):
@@ -44,7 +47,7 @@ def summary_daily():
     """
     db = SessionLocal()
     try:
-        start = datetime.utcnow() - timedelta(days=14)
+        start = datetime.now(timezone.utc) - timedelta(days=14)
         # Aggregate trains & cars per day and direction
         rows = (db.query(func.date(TrainPass.start_ts).label("day"),
                          TrainPass.direction.label("dir"),
