@@ -11,7 +11,7 @@ ocr_queue = asyncio.Queue()    # locomotive crops → OCR worker
 # CONFIG
 MODEL_PATH = "best.pt"
 LINE_X = 320                   # vertical count line in pixels (imgsz width assumed 640)
-CLASS_MAP = {0: "locomotive", 1: "railcar"}
+CLASS_MAP = {0: "locomotive", 1: "railcar"} # Should this be {0: "engine", 1: "railcar"}? Though I am thinking of changing this on my next model fine tuning run.
 CONF = 0.25
 IMG_SIZE = 640
 START_FRAMES = 6               # frames with detections to call "train started"
